@@ -18,6 +18,9 @@
 #define MAX_PENDING 5
 #define MAX_LINE 4096
 
+int get_command(char *, int new_s); 
+void run_command(char *command);
+
 int main(int argc, char *argv[]) {
 
 	if (argc != 2) {
@@ -70,23 +73,50 @@ int main(int argc, char *argv[]) {
 			exit(1);
 		}
 
-		//receive message
 		while(1) {
-			if ((len = recv(new_s, buf, sizeof(buf), 0)) == -1) {
-				perror("Server received error\n");
-				exit(1);
-			}
 
-			if (len==0) {
+			//receive command
+			char command[100];	
+			int valid_command = get_command(command, new_s);
+			if (valid_command == 0) {
 				break;
 			}
-
-			printf("TCP Server Received:%s", buf);
 		}
 
-		printf("Client finishes, close the connection!\n");
+		printf("Client finished, close the connection!\n");
 		close(new_s);
 	}
 
 	return 0;
+}
+
+//returns 0 if quit, 1 otherwise
+int get_command(char *command, int new_s) {
+
+	int len;
+
+	if ((len = recv(new_s, command, sizeof(command), 0)) == -1) {
+		perror("Server received error\n");
+		exit(1);
+	}
+	
+	if (len==0) {
+		return 0;
+	}
+
+	run_command(command);
+
+	return 1;
+}
+
+void run_command(char *command ) {
+	if (!strcmp(command, "REQ")) {
+	} else if (!strcmp(command, "UPL")) {
+	} else if (!strcmp(command, "LIS")) {
+	} else if (!strcmp(command, "MKD")) {
+	} else if (!strcmp(command, "RMD")) {
+	} else if (!strcmp(command, "CHD")) {
+	} else if (!strcmp(command, "DEL")) {
+	} else if (!strcmp(command, "XIT")) {
+	}
 }
