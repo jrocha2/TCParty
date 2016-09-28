@@ -1,6 +1,6 @@
 all: myftp
 
-myftp:
+myftp: client.c
 	gcc client.c -o myftp
 
 clean:

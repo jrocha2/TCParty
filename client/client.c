@@ -14,6 +14,14 @@
 #include <netdb.h>
 #include <math.h>
 
+void request_file();
+void upload_file();
+void list_dir();
+void make_dir();
+void remove_dir();
+void change_dir();
+void delete_file();
+
 int main(int argc, char** argv) {
 
     // Check for valid input arguments
@@ -22,9 +30,10 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    int s;
+    int s, len;
     struct hostent *hp;
     struct sockaddr_in sin;
+    char buf[4];
 
     // Translate host name into IP address
     hp = gethostbyname(argv[1]);
@@ -52,18 +61,64 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    char buf[4096];
-    int len;
+    printf("\nEnter an operation: ");
+
     while(fgets(buf, sizeof(buf), stdin)) {
-        buf[4095] = '\0';
-        len = strlen(buf) + 1;
-        if (send(s, buf, len, 0) == -1) {
-            perror("client send error!");
-            exit(1);
+        buf[3] = '\0';
+
+        if (!strcmp(buf, "REQ")) {
+            request_file();       
+        } else if (!strcmp(buf, "UPL")) {
+            upload_file();
+        } else if (!strcmp(buf, "LIS")) {
+            list_dir();
+        } else if (!strcmp(buf, "MKD")) {
+            make_dir();
+        } else if (!strcmp(buf, "RMD")) {
+            remove_dir();
+        } else if (!strcmp(buf, "CHD")) {
+            change_dir();
+        } else if (!strcmp(buf, "DEL")) {
+            delete_file();
+        } else if (!strcmp(buf, "XIT")) {
+            close(s);
+            printf("\nThe session has now been closed.\n");
+            return 0;
+        } else {
+            printf("\nInvalid operation\n");
         }
+
+        printf("\nEnter an operation: ");
     }
 
     close(s);
-
     return 0;
+}
+
+void request_file() {
+
+}
+
+void upload_file() {
+
+}
+
+void list_dir() {
+
+}
+
+void make_dir() {
+
+}
+
+void remove_dir() {
+
+}
+
+void change_dir() {
+
+}
+
+void delete_file() {
+
 }
