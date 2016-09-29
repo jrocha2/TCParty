@@ -14,16 +14,18 @@
 #include<time.h>
 #include<stdint.h>
 #include<sys/time.h>
+#include<dirent.h>
 
 #define MAX_PENDING 5
 #define MAX_LINE 4096
 
 int new_s; // global variable for socket
 
-int receive_data(char *);
-void send_data(char *);
+int receive_string(char *);
+void send_string(char *);
 int get_command(char *, int new_s); 
 void run_command(char *command);
+void list_dir();
 
 int main(int argc, char *argv[]) {
 
@@ -95,7 +97,7 @@ int main(int argc, char *argv[]) {
 }
 
 // Return the length of data received
-int receive_data(char* buffer) {
+int receive_string(char* buffer) {
     int len;
     if ((len = recv(new_s, buffer, sizeof(buffer), 0)) == -1) {
         perror("Receive error!\n");
@@ -104,7 +106,7 @@ int receive_data(char* buffer) {
     return len;
 }
 
-void send_data(char* buffer) {
+void send_string(char* buffer) {
     if (send(new_s, buffer, strlen(buffer)+1, 0) == -1) {
         perror("Client send error!\n");
         exit(1);
@@ -114,7 +116,7 @@ void send_data(char* buffer) {
 //returns 0 if quit, 1 otherwise
 int get_command(char *command, int new_s) {
 
-    if (receive_data(command) == 0) {
+    if (receive_string(command) == 0) {
         return 0;
     }
 
@@ -127,10 +129,45 @@ void run_command(char *command ) {
     if (!strcmp(command, "REQ")) {
     } else if (!strcmp(command, "UPL")) {
     } else if (!strcmp(command, "LIS")) {
+        list_dir();
     } else if (!strcmp(command, "MKD")) {
     } else if (!strcmp(command, "RMD")) {
     } else if (!strcmp(command, "CHD")) {
     } else if (!strcmp(command, "DEL")) {
     } else if (!strcmp(command, "XIT")) {
+    }
+}
+
+void list_dir() {
+    DIR *dp;
+    struct dirent *ep;
+    int size = 0;
+    char buf[256];
+
+    dp = opendir("./");
+    if (dp != NULL) {
+        while (ep = readdir(dp)) {
+            size += strlen(ep->d_name);
+        }
+        closedir(dp);
+    } else {
+        perror("Error opening directory");
+    }
+    size = htonl(size);
+
+    // Send size of directory listing
+    if (send(new_s, &size, sizeof(int32_t), 0) == -1) {
+        perror("Send error!\n");
+        exit(1);
+    }
+
+    dp = opendir("./");
+    if (dp != NULL) {
+        while (ep = readdir(dp)) {
+            send_string(ep->d_name);
+        }
+        closedir(dp);
+    } else {
+        perror("Error opening directory");
     }
 }

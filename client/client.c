@@ -16,8 +16,8 @@
 
 int s;  // Global variable for socket fd
 
-int receive_data(char *);
-void send_data(char *);
+int receive_string(char *);
+void send_string(char *);
 void request_file();
 void upload_file();
 void list_dir();
@@ -67,23 +67,21 @@ int main(int argc, char** argv) {
     printf("\nEnter an operation: ");
 
     while(fgets(buf, sizeof(buf), stdin)) {
-        buf[99] = '\0';
-
-        if (!strcmp(buf, "REQ")) {
+        if (!strncmp(buf, "REQ", 3)) {
             request_file();       
-        } else if (!strcmp(buf, "UPL")) {
+        } else if (!strncmp(buf, "UPL", 3)) {
             upload_file();
-        } else if (!strcmp(buf, "LIS")) {
+        } else if (!strncmp(buf, "LIS", 3)) {
             list_dir();
-        } else if (!strcmp(buf, "MKD")) {
+        } else if (!strncmp(buf, "MKD", 3)) {
             make_dir();
-        } else if (!strcmp(buf, "RMD")) {
+        } else if (!strncmp(buf, "RMD", 3)) {
             remove_dir();
-        } else if (!strcmp(buf, "CHD")) {
+        } else if (!strncmp(buf, "CHD", 3)) {
             change_dir();
-        } else if (!strcmp(buf, "DEL")) {
+        } else if (!strncmp(buf, "DEL", 3)) {
             delete_file();
-        } else if (!strcmp(buf, "XIT")) {
+        } else if (!strncmp(buf, "XIT", 3)) {
             close(s);
             printf("\nThe session has now been closed.\n");
             return 0;
@@ -98,18 +96,17 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-int receive_data(char* buffer) {
+int receive_string(char* buffer) {
     int len;
     if ((len = recv(s, buffer, sizeof(buffer), 0)) == -1) {
         perror("Receive error!\n");
         close(s);
         exit(1);
     }
-    
     return len;
 }
 
-void send_data(char* buffer) {
+void send_string(char* buffer) {
     if (send(s, buffer, strlen(buffer)+1, 0) == -1) {
         perror("Client send error!\n");
         close(s);
@@ -126,7 +123,24 @@ void upload_file() {
 }
 
 void list_dir() {
+    int bytes_read = 0, size = 0;
+    char buf[256];
+    strcpy(buf, "LIS");
+    send_string(buf);
 
+    if (recv(s, &size, sizeof(int32_t), 0) == -1) {
+        perror("Receive error!\n");
+        close(s);
+        exit(1);
+    }
+    size = ntohl(size);
+    
+    bzero(buf, sizeof(buf));
+    while (bytes_read < size) {
+        bytes_read += receive_string(buf);
+        printf("\n%s", buf);
+        bzero(buf, sizeof(buf));
+    }  
 }
 
 void make_dir() {
