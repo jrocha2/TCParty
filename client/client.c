@@ -14,6 +14,10 @@
 #include <netdb.h>
 #include <math.h>
 
+int s;  // Global variable for socket fd
+
+int receive_data(char *);
+void send_data(char *);
 void request_file();
 void upload_file();
 void list_dir();
@@ -30,10 +34,9 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    int s, len;
     struct hostent *hp;
     struct sockaddr_in sin;
-    char buf[4];
+    char buf[100];
 
     // Translate host name into IP address
     hp = gethostbyname(argv[1]);
@@ -64,7 +67,7 @@ int main(int argc, char** argv) {
     printf("\nEnter an operation: ");
 
     while(fgets(buf, sizeof(buf), stdin)) {
-        buf[3] = '\0';
+        buf[99] = '\0';
 
         if (!strcmp(buf, "REQ")) {
             request_file();       
@@ -93,6 +96,25 @@ int main(int argc, char** argv) {
 
     close(s);
     return 0;
+}
+
+int receive_data(char* buffer) {
+    int len;
+    if ((len = recv(s, buffer, sizeof(buffer), 0)) == -1) {
+        perror("Receive error!\n");
+        close(s);
+        exit(1);
+    }
+    
+    return len;
+}
+
+void send_data(char* buffer) {
+    if (send(s, buffer, strlen(buffer)+1, 0) == -1) {
+        perror("Client send error!\n");
+        close(s);
+        exit(1);
+    }
 }
 
 void request_file() {
