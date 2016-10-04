@@ -14,6 +14,7 @@
 #include<time.h>
 #include<stdint.h>
 #include<sys/time.h>
+#include<sys/stat.h>
 #include<dirent.h>
 #include<errno.h>
 
@@ -28,6 +29,7 @@ int get_command(char *, int new_s);
 void run_command(char *command);
 void list_dir();
 void make_dir();
+void remove_dir();
 
 int main(int argc, char *argv[]) {
 
@@ -135,6 +137,7 @@ void run_command(char *command ) {
     } else if (!strcmp(command, "MKD")) {
         make_dir();
     } else if (!strcmp(command, "RMD")) {
+        remove_dir();
     } else if (!strcmp(command, "CHD")) {
     } else if (!strcmp(command, "DEL")) {
     } else if (!strcmp(command, "XIT")) {
@@ -213,5 +216,66 @@ void make_dir() {
     if (send(new_s, &client_result, sizeof(int), 0) == -1) {
         perror("\nSend error!");
         exit(1);
+    }
+}
+
+void remove_dir() {
+    int bytes_read = 0, result, client_result;
+    int16_t len;
+    char buf[256], dir[256];
+    struct stat sb;
+
+    // Receive length of directory name
+    if (recv(new_s, &len, sizeof(int16_t), 0) == -1) {
+        perror("\nReceive error!");
+        exit(1);
+    }
+    len = ntohs(len);
+
+    // Receive directory name
+    bzero(dir, sizeof(dir));
+    while (bytes_read < len) {
+        bzero(buf, sizeof(buf));
+        bytes_read += receive_string(buf);
+        strcat(dir, buf);
+    }
+
+    if (stat(dir, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+        client_result = 1;
+    } else {
+        client_result = -1;
+    }
+    client_result = htonl(client_result);
+
+    // Send if directory exists or not
+    if (send(new_s, &client_result, sizeof(int), 0) == -1) {
+        perror("\nSend error!");
+        exit(1);
+    }
+
+    if (ntohl(client_result) == -1) {
+        return;         // Exit function if dir does not exits
+    }
+
+    // Receive deletion confirmation
+    bzero(buf, sizeof(buf));
+    receive_string(buf);
+
+    if (!strcmp(buf, "No")) {
+        return;
+    } else {
+        result = rmdir(dir);
+        if (result == 0) {
+            client_result = 1;
+        } else {
+            client_result = -1;
+        }
+        client_result = htonl(client_result);
+
+        // Send result to client
+        if (send(new_s, &client_result, sizeof(int), 0) == -1) {
+            perror("\nSend error!");
+            exit(1);
+        }
     }
 }

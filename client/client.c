@@ -190,19 +190,81 @@ void make_dir() {
 
     switch (server_result) {
         case -2:
-            printf("\nThe directory already exists on the server.");
+            printf("\nThe directory already exists on the server.\n");
             break;
         case -1:
-            printf("\nError in making directory.");
+            printf("\nError in making directory.\n");
             break;
         default:
-            printf("\nThe directory was successfully made.");
+            printf("\nThe directory was successfully made.\n");
             break;
     }
 }
 
 void remove_dir() {
+    char buf[256] = "RMD";
+    int result;
+    int16_t len;
 
+    // Send RMD request to server
+    send_string(buf);
+    bzero(buf, sizeof(buf));
+
+    printf("\nEnter directory to be deleted: ");
+    scanf("%s", buf);
+    getchar();
+
+    len = strlen(buf);
+    len = htons(len);
+    
+    // Send directory name length
+    if (send(s, &len, sizeof(int16_t), 0) == -1) {
+        perror("\nSend error!");
+        close(s);
+        exit(1);
+    }
+    
+    // Send name of directory
+    send_string(buf);
+
+    // Receive initial result from server
+    if (recv(s, &result, sizeof(int), 0) == -1) {
+        perror("\nReceive error!");
+        close(s);
+        exit(1);
+    }
+    result = ntohl(result);
+
+    if (result == -1) {
+        printf("\nThe directory does not exist on the server\n");
+        return;
+    }
+
+    printf("\nAre you sure you want to delete this directory (Yes/No): ");
+    bzero(buf, sizeof(buf));
+    scanf("%s", buf);
+    getchar();
+
+    // Send response to server
+    send_string(buf);
+    
+    if (!strcmp(buf, "No")) {
+        printf("\nDelete abandoned by the user!\n");
+    } else {
+        // Receive rmdir result from server
+        if (recv(s, &result, sizeof(int), 0) == -1) {
+            perror("\nReceive error!");
+            close(s);
+            exit(1);
+        }
+        result = ntohl(result);
+
+        if (result < 0) {
+            printf("\nFailed to delete directory\n");
+        } else {
+            printf("\nDirectory deleted\n");
+        }
+    }
 }
 
 void change_dir() {
