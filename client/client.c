@@ -155,7 +155,50 @@ void list_dir() {
 }
 
 void make_dir() {
+    char buf[256] = "MKD";
+    int16_t len;
+    int server_result;
 
+    // Send MKD request to server
+    send_string(buf);
+    bzero(buf, sizeof(buf));
+
+    printf("\nEnter directory to be created: ");
+    scanf("%s", buf);
+    getchar();
+
+    len = strlen(buf);
+    len = htons(len);
+
+    // Send directory name length
+    if (send(s, &len, sizeof(int16_t), 0) == -1) {
+        perror("\nSend error!");
+        close(s);
+        exit(1);
+    }
+    
+    // Send name of directory
+    send_string(buf);
+
+    // Receive result of action from server
+    if (recv(s, &server_result, sizeof(int), 0) == -1) {
+        perror("\nReceive error!");
+        close(s);
+        exit(1);
+    }
+    server_result = ntohl(server_result);
+
+    switch (server_result) {
+        case -2:
+            printf("\nThe directory already exists on the server.");
+            break;
+        case -1:
+            printf("\nError in making directory.");
+            break;
+        default:
+            printf("\nThe directory was successfully made.");
+            break;
+    }
 }
 
 void remove_dir() {

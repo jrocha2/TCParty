@@ -15,6 +15,7 @@
 #include<stdint.h>
 #include<sys/time.h>
 #include<dirent.h>
+#include<errno.h>
 
 #define MAX_PENDING 5
 #define MAX_LINE 4096
@@ -26,6 +27,7 @@ void send_string(char *);
 int get_command(char *, int new_s); 
 void run_command(char *command);
 void list_dir();
+void make_dir();
 
 int main(int argc, char *argv[]) {
 
@@ -131,6 +133,7 @@ void run_command(char *command ) {
     } else if (!strcmp(command, "LIS")) {
         list_dir();
     } else if (!strcmp(command, "MKD")) {
+        make_dir();
     } else if (!strcmp(command, "RMD")) {
     } else if (!strcmp(command, "CHD")) {
     } else if (!strcmp(command, "DEL")) {
@@ -171,5 +174,44 @@ void list_dir() {
         closedir(dp);
     } else {
         perror("Error opening directory");
+    }
+}
+
+void make_dir() {
+    int bytes_read = 0, result, client_result;
+    int16_t len;
+    char buf[256], dir[256];
+
+    // Receive length of directory name
+    if (recv(new_s, &len, sizeof(int16_t), 0) == -1) {
+        perror("\nReceive error!");
+        exit(1);
+    }
+    len = ntohs(len);
+
+    // Receive directory name
+    bzero(dir, sizeof(dir));
+    while (bytes_read < len) {
+        bzero(buf, sizeof(buf));
+        bytes_read += receive_string(buf);
+        strcat(dir, buf);
+    }
+
+    // Attempt to make directory
+    result = mkdir(dir, 0777);
+    if (result == 0) {
+        client_result = 1;
+    } else if (errno == EEXIST) {
+        client_result = -2;
+    } else {
+        client_result = -1;
+    }
+
+    client_result = htonl(client_result);
+
+    // Send result back to client
+    if (send(new_s, &client_result, sizeof(int), 0) == -1) {
+        perror("\nSend error!");
+        exit(1);
     }
 }
