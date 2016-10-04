@@ -151,7 +151,8 @@ void list_dir() {
                 dir[j++] = buf[i];
             }       
         }
-    }  
+    } 
+    printf("\n"); 
 }
 
 void make_dir() {
@@ -268,7 +269,46 @@ void remove_dir() {
 }
 
 void change_dir() {
+    char buf[256] = "CHD";
+    int16_t len;
+    int result;
 
+    // Send CHD request to server
+    send_string(buf); 
+    bzero(buf, sizeof(buf));
+
+    printf("\nEnter directory path to navigate to: ");
+    scanf("%s", buf);
+    getchar();
+
+    len = strlen(buf);
+    len = htons(len);
+    
+    // Send directory path length
+    if (send(s, &len, sizeof(int16_t), 0) == -1) {
+        perror("\nSend error!");
+        close(s);
+        exit(1);
+    }
+    
+    // Send directory path
+    send_string(buf);
+
+    // Receive result from server
+    if (recv(s, &result, sizeof(int), 0) == -1) {
+        perror("\nReceive error!");
+        close(s);
+        exit(1);
+    }
+    result = ntohl(result);
+
+    if (result == -2) {
+        printf("\nThe directory does not exist on the server.\n");
+    } else if (result == -1) {
+        printf("\nError in changing directory.\n");
+    } else {
+        printf("\nChanged current directory.\n");
+    }
 }
 
 void delete_file() {
