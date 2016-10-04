@@ -147,7 +147,9 @@ void list_dir() {
     dp = opendir("./");
     if (dp != NULL) {
         while (ep = readdir(dp)) {
-            size += strlen(ep->d_name);
+            bzero(buf, sizeof(buf));
+            strcpy(buf, ep->d_name);
+            size += strlen(buf) + 1;
         }
         closedir(dp);
     } else {

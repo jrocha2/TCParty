@@ -123,9 +123,10 @@ void upload_file() {
 }
 
 void list_dir() {
-    int bytes_read = 0, size = 0;
-    char buf[256];
-    strcpy(buf, "LIS");
+    int bytes_read = 0, size = 0, len = 0, i = 0, j = 0;
+    char dir[256], buf[256] = "LIS";
+    
+    // Send LIS request to server
     send_string(buf);
 
     if (recv(s, &size, sizeof(int32_t), 0) == -1) {
@@ -135,11 +136,21 @@ void list_dir() {
     }
     size = ntohl(size);
     
-    bzero(buf, sizeof(buf));
     while (bytes_read < size) {
-        bytes_read += receive_string(buf);
-        printf("\n%s", buf);
         bzero(buf, sizeof(buf));
+        len = receive_string(buf);
+        bytes_read += len;
+        
+        // Parse stream for end of strings
+        for (i = 0; i < len; i++) {
+            if (buf[i] == '\0') {
+                printf("\n%s", dir);
+                bzero(dir, sizeof(dir));
+                j = 0;
+            } else {
+                dir[j++] = buf[i];
+            }       
+        }
     }  
 }
 
