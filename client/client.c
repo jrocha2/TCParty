@@ -18,6 +18,7 @@ int s;  // Global variable for socket fd
 
 int receive_string(char *);
 void send_string(char *);
+void get_and_send_info();
 void request_file();
 void upload_file();
 void list_dir();
@@ -114,6 +115,29 @@ void send_string(char* buffer) {
     }
 }
 
+// Get user string input and sends length along with string
+void get_and_send_info() {
+    int16_t len;
+    char buf[256];
+    bzero(buf, sizeof(buf));   
+
+    scanf("%s", buf);
+    getchar();
+
+    len = strlen(buf);
+    len = htons(len);
+
+    // Send directory name length
+    if (send(s, &len, sizeof(int16_t), 0) == -1) {
+        perror("\nSend error!");
+        close(s);
+        exit(1);
+    }
+    
+    // Send name of directory
+    send_string(buf);
+}
+
 void request_file() {
 
 }
@@ -165,21 +189,7 @@ void make_dir() {
     bzero(buf, sizeof(buf));
 
     printf("\nEnter directory to be created: ");
-    scanf("%s", buf);
-    getchar();
-
-    len = strlen(buf);
-    len = htons(len);
-
-    // Send directory name length
-    if (send(s, &len, sizeof(int16_t), 0) == -1) {
-        perror("\nSend error!");
-        close(s);
-        exit(1);
-    }
-    
-    // Send name of directory
-    send_string(buf);
+    get_and_send_info();
 
     // Receive result of action from server
     if (recv(s, &server_result, sizeof(int), 0) == -1) {
@@ -212,21 +222,7 @@ void remove_dir() {
     bzero(buf, sizeof(buf));
 
     printf("\nEnter directory to be deleted: ");
-    scanf("%s", buf);
-    getchar();
-
-    len = strlen(buf);
-    len = htons(len);
-    
-    // Send directory name length
-    if (send(s, &len, sizeof(int16_t), 0) == -1) {
-        perror("\nSend error!");
-        close(s);
-        exit(1);
-    }
-    
-    // Send name of directory
-    send_string(buf);
+    get_and_send_info();
 
     // Receive initial result from server
     if (recv(s, &result, sizeof(int), 0) == -1) {
@@ -278,21 +274,7 @@ void change_dir() {
     bzero(buf, sizeof(buf));
 
     printf("\nEnter directory path to navigate to: ");
-    scanf("%s", buf);
-    getchar();
-
-    len = strlen(buf);
-    len = htons(len);
-    
-    // Send directory path length
-    if (send(s, &len, sizeof(int16_t), 0) == -1) {
-        perror("\nSend error!");
-        close(s);
-        exit(1);
-    }
-    
-    // Send directory path
-    send_string(buf);
+    get_and_send_info();
 
     // Receive result from server
     if (recv(s, &result, sizeof(int), 0) == -1) {

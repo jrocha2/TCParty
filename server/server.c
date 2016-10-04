@@ -25,6 +25,7 @@ int new_s; // global variable for socket
 
 int receive_string(char *);
 void send_string(char *);
+void receive_file_info(char *);
 int get_command(char *, int new_s); 
 void run_command(char *command);
 void list_dir();
@@ -118,6 +119,28 @@ void send_string(char* buffer) {
     }
 }
 
+// Receives length of file/directory and then the name
+void receive_file_info(char* dir) {
+    int bytes_read = 0;
+    int16_t len;
+    char buf[256];
+     
+    // Receive length of string
+    if (recv(new_s, &len, sizeof(int16_t), 0) == -1) {
+        perror("\nReceive error!");
+        exit(1);
+    }
+    len = ntohs(len);
+
+    // Receive string
+    bzero(dir, sizeof(dir));
+    while (bytes_read < len) {
+        bzero(buf, sizeof(buf));
+        bytes_read += receive_string(buf);
+        strcat(dir, buf);
+    }
+}
+
 //returns 0 if quit, 1 otherwise
 int get_command(char *command, int new_s) {
 
@@ -183,24 +206,11 @@ void list_dir() {
 }
 
 void make_dir() {
-    int bytes_read = 0, result, client_result;
-    int16_t len;
-    char buf[256], dir[256];
+    int result, client_result;
+    char dir[256];
 
-    // Receive length of directory name
-    if (recv(new_s, &len, sizeof(int16_t), 0) == -1) {
-        perror("\nReceive error!");
-        exit(1);
-    }
-    len = ntohs(len);
-
-    // Receive directory name
-    bzero(dir, sizeof(dir));
-    while (bytes_read < len) {
-        bzero(buf, sizeof(buf));
-        bytes_read += receive_string(buf);
-        strcat(dir, buf);
-    }
+    // Get directory name
+    receive_file_info(dir);
 
     // Attempt to make directory
     result = mkdir(dir, 0777);
@@ -222,25 +232,12 @@ void make_dir() {
 }
 
 void remove_dir() {
-    int bytes_read = 0, result, client_result;
-    int16_t len;
+    int result, client_result;
     char buf[256], dir[256];
     struct stat sb;
 
-    // Receive length of directory name
-    if (recv(new_s, &len, sizeof(int16_t), 0) == -1) {
-        perror("\nReceive error!");
-        exit(1);
-    }
-    len = ntohs(len);
-
-    // Receive directory name
-    bzero(dir, sizeof(dir));
-    while (bytes_read < len) {
-        bzero(buf, sizeof(buf));
-        bytes_read += receive_string(buf);
-        strcat(dir, buf);
-    }
+    // Get directory name
+    receive_file_info(dir);
 
     if (stat(dir, &sb) == 0 && S_ISDIR(sb.st_mode)) {
         client_result = 1;
@@ -283,25 +280,12 @@ void remove_dir() {
 }
 
 void change_dir() {
-    int bytes_read = 0, result, client_result;
-    int16_t len;
-    char buf[256], dir[256];
+    int result, client_result;
+    char dir[256];
     struct stat sb;
 
-    // Receive length of directory name
-    if (recv(new_s, &len, sizeof(int16_t), 0) == -1) {
-        perror("\nReceive error!");
-        exit(1);
-    }
-    len = ntohs(len);
-
-    // Receive directory name
-    bzero(dir, sizeof(dir));
-    while (bytes_read < len) {
-        bzero(buf, sizeof(buf));
-        bytes_read += receive_string(buf);
-        strcat(dir, buf);
-    }
+    // Get directory name
+    receive_file_info(dir);
 
     result = chdir(dir);
     if (result == 0) {
