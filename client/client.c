@@ -27,6 +27,7 @@ void remove_dir();
 void change_dir();
 void delete_file();
 void delete_file_helper();
+void print_md5sum(unsigned char *md);
 
 int main(int argc, char** argv) {
 
@@ -108,6 +109,22 @@ int receive_string(char* buffer) {
     return len;
 }
 
+void receive_string_with_size(char *str, int size) {
+    char buf[size];
+    int bytes_read = 0;
+
+    bzero(str, sizeof(str));
+    while(bytes_read < size) {
+        printf("read: %i\n", bytes_read);
+        bzero(buf, sizeof(buf));
+        bytes_read += receive_string(buf);
+        strcat(str, buf);
+    }
+
+    printf("read: %i\n", bytes_read);
+    printf("strlen: %i\n", strlen(str));
+}
+
 void send_string(char* buffer) {
     if (send(s, buffer, strlen(buffer)+1, 0) == -1) {
         perror("Client send error!\n");
@@ -144,7 +161,7 @@ void request_file() {
     char buf[256] = "REQ";
     int16_t len;
     int32_t file_size;
-    char md5sum[16];
+    unsigned char md5sum[100];
 
     //send REQ request to server
     send_string(buf);
@@ -166,7 +183,16 @@ void request_file() {
         return;
     }
 
-    receive_string(md5sum);
+    //buffer for file contents
+    char file_contents[4096];
+
+    receive_string_with_size(md5sum, 17);
+
+    print_md5sum(md5sum);
+
+    receive_string_with_size(file_contents, file_size);
+
+    printf("%s\n", file_contents);
 }
 
 void upload_file() {
@@ -379,4 +405,12 @@ void delete_file_helper() {
             printf("\nFile deleted\n");
         }
     }
+}
+
+void print_md5sum(unsigned char *md) {
+    int i;
+    for (i=0; i<16; i++) {
+        printf("%02x", md[i]);
+    }
+    printf("\n");
 }

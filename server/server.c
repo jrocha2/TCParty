@@ -38,8 +38,9 @@ void remove_dir();
 void change_dir();
 void delete_file();
 void delete_file_helper(char *);
-char *get_md5sum(char *filename, int32_t file_size); 
-void print_md5sum(char *);
+void get_md5sum(char *md5sum, char *filename, int32_t file_size); 
+void print_md5sum(unsigned char *);
+void read_file(char *filename, char *buf);
 
 int main(int argc, char *argv[]) {
 
@@ -192,8 +193,10 @@ void send_file() {
     if (access(filename, F_OK) != -1) {
         stat(filename, &st);
         file_size = st.st_size;
+        printf("file exists\n");
     } else {
         file_size = -1;
+        printf("file does not exist\n");
     }
 
     int file_size_htonl = htonl(file_size);
@@ -205,15 +208,25 @@ void send_file() {
     }
 
     //if file does not exist, exit function
-    if (file_size_htonl == -1) {
+    if (file_size == -1) {
         return;
     }
 
     //calculate md5sum
-    unsigned char md5sum[300];
-    int file_descript = open(filename, O_RDONLY);
-    char *file_buffer = mmap(0, file_size, PROT_READ, MAP_SHARED, file_descript, 0);
-    MD5((unsigned char *) file_buffer, file_size, md5sum);
+    char md5sum[16];
+    get_md5sum(md5sum, filename, file_size);
+
+    print_md5sum((unsigned char *)md5sum);
+
+    send_string(md5sum);
+
+    //buffer to store file contents
+    char buf[file_size];
+    read_file(filename, buf);
+
+    printf("%s\n", buf);
+
+    send_string(buf);
 }
 
 void list_dir() {
@@ -410,9 +423,29 @@ void delete_file_helper(char *filename) {
     }
 }
 
-char *get_md5sum(char *filename, int32_t file_size) {
+void get_md5sum(char *md5sum, char *filename, int32_t file_size) {
     int file_descript = open(filename, O_RDONLY);
-    unsigned char md5sum[16];
     char *file_buffer = mmap(0, file_size, PROT_READ, MAP_SHARED, file_descript, 0);
     MD5 ((unsigned char *) file_buffer, file_size, md5sum);
+}
+
+void read_file(char *filename, char *buf) {
+	long length;
+	FILE *f = fopen(filename, "r");
+
+	if (f) {
+		fseek(f, 0, SEEK_END);
+		length = ftell(f);
+		fseek(f, 0, SEEK_SET);
+		fread(buf, 1, length, f);
+		fclose(f);
+	}
+}
+
+void print_md5sum(unsigned char *md) {
+    int i;
+    for (i=0; i<16; i++) {
+        printf("%02x", md[i]);
+    }
+    printf("\n");
 }
