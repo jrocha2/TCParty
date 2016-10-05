@@ -28,6 +28,7 @@ void change_dir();
 void delete_file();
 void delete_file_helper();
 void print_md5sum(unsigned char *md);
+void create_file_in_chunks(char *, int);
 
 int main(int argc, char** argv) {
 
@@ -109,20 +110,36 @@ int receive_string(char* buffer) {
     return len;
 }
 
-void receive_string_with_size(char *str, int size) {
+int receive_string_with_size(char *str, int size) {
     char buf[size];
     int bytes_read = 0;
 
     bzero(str, sizeof(str));
     while(bytes_read < size) {
-        printf("read: %i\n", bytes_read);
         bzero(buf, sizeof(buf));
         bytes_read += receive_string(buf);
         strcat(str, buf);
     }
 
-    printf("read: %i\n", bytes_read);
-    printf("strlen: %i\n", strlen(str));
+    return bytes_read;
+}
+
+void create_file_in_chunks(char *filename, int file_size) {
+    char buf[4096];
+    int total_bytes_read = 0;
+
+    printf("expected: %i\n", file_size);
+    while(total_bytes_read <= file_size) {
+        int expected_bytes;
+        if (file_size - total_bytes_read >= 4096) {
+            expected_bytes = 4096;
+        } else {
+            expected_bytes = file_size - total_bytes_read;
+        }
+
+        total_bytes_read += receive_string_with_size(buf, expected_bytes);
+        printf("Read: %i", total_bytes_read);
+    }
 }
 
 void send_string(char* buffer) {
@@ -183,16 +200,13 @@ void request_file() {
         return;
     }
 
-    //buffer for file contents
-    char file_contents[4096];
-
     receive_string_with_size(md5sum, 17);
 
     print_md5sum(md5sum);
 
-    receive_string_with_size(file_contents, file_size);
+    char *filename = "delete.txt";
 
-    printf("%s\n", file_contents);
+    create_file_in_chunks(filename, file_size);
 }
 
 void upload_file() {

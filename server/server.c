@@ -28,6 +28,7 @@ int new_s; // global variable for socket
 
 int receive_string(char *);
 void send_string(char *);
+void send_file_in_chunks(char *);
 void receive_file_info(char *);
 int get_command(char *, int new_s); 
 void run_command(char *command);
@@ -128,6 +129,20 @@ void send_string(char* buffer) {
     }
 }
 
+void send_file_in_chunks(char *filename) {
+
+    //use as buffer
+    char line[4096];
+    
+    FILE *file = fopen(filename, "r"); 
+
+    while(fgets, line, sizeof(line), file) {
+        printf("%s", line);
+    }
+
+    send_string(line);
+}
+
 // Receives length of file/directory and then the name
 void receive_file_info(char* dir) {
     int bytes_read = 0;
@@ -220,13 +235,7 @@ void send_file() {
 
     send_string(md5sum);
 
-    //buffer to store file contents
-    char buf[file_size];
-    read_file(filename, buf);
-
-    printf("%s\n", buf);
-
-    send_string(buf);
+    send_file_in_chunks(filename);
 }
 
 void list_dir() {
