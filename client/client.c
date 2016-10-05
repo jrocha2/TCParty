@@ -141,6 +141,32 @@ void get_and_send_info() {
 
 void request_file() {
 
+    char buf[256] = "REQ";
+    int16_t len;
+    int32_t file_size;
+    char md5sum[16];
+
+    //send REQ request to server
+    send_string(buf);
+    bzero(buf, sizeof(buf));
+
+    printf("\nEnter the name of the file you want to download: ");
+    get_and_send_info();
+
+    //receive result from server: 1 if file exists and -1 if not
+    if (recv(s, &file_size, sizeof(int), 0) == -1) {
+        perror("\nReceive error!");
+        close(s);
+        exit(1);
+    }
+    file_size = ntohl(file_size);
+
+    if (file_size == -1) {
+        printf("\nThe file does not exist on the server.\n");
+        return;
+    }
+
+    receive_string(md5sum);
 }
 
 void upload_file() {
@@ -320,10 +346,6 @@ void delete_file() {
         //call function to actually delete the file now that it exists
         delete_file_helper();
     } 
-    
-    
-    else if (result == 1) {
-    }
 }
 
 //Only call once the server has ensured that the file exists

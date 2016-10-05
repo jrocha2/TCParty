@@ -17,6 +17,9 @@
 #include<sys/stat.h>
 #include<dirent.h>
 #include<errno.h>
+#include<fcntl.h>
+#include<sys/mman.h>
+#include<openssl/md5.h>
 
 #define MAX_PENDING 5
 #define MAX_LINE 4096
@@ -28,12 +31,15 @@ void send_string(char *);
 void receive_file_info(char *);
 int get_command(char *, int new_s); 
 void run_command(char *command);
+void send_file();
 void list_dir();
 void make_dir();
 void remove_dir();
 void change_dir();
 void delete_file();
 void delete_file_helper(char *);
+char *get_md5sum(char *filename, int32_t file_size); 
+void print_md5sum(char *);
 
 int main(int argc, char *argv[]) {
 
@@ -157,6 +163,7 @@ int get_command(char *command, int new_s) {
 
 void run_command(char *command ) {
     if (!strcmp(command, "REQ")) {
+        send_file();
     } else if (!strcmp(command, "UPL")) {
     } else if (!strcmp(command, "LIS")) {
         list_dir();
@@ -170,6 +177,43 @@ void run_command(char *command ) {
         delete_file();
     } else if (!strcmp(command, "XIT")) {
     }
+}
+
+void send_file() {
+    
+    int32_t file_size;
+    struct stat st;
+
+    char filename[256];
+
+    receive_file_info(filename);
+
+    //determine if file exists
+    if (access(filename, F_OK) != -1) {
+        stat(filename, &st);
+        file_size = st.st_size;
+    } else {
+        file_size = -1;
+    }
+
+    int file_size_htonl = htonl(file_size);
+
+    //Tell client if the file exists
+    if (send(new_s, &file_size_htonl, sizeof(int32_t), 0) == -1) {
+        perror("\n Send error!");
+        exit(1);
+    }
+
+    //if file does not exist, exit function
+    if (file_size_htonl == -1) {
+        return;
+    }
+
+    //calculate md5sum
+    unsigned char md5sum[300];
+    int file_descript = open(filename, O_RDONLY);
+    char *file_buffer = mmap(0, file_size, PROT_READ, MAP_SHARED, file_descript, 0);
+    MD5((unsigned char *) file_buffer, file_size, md5sum);
 }
 
 void list_dir() {
@@ -364,4 +408,11 @@ void delete_file_helper(char *filename) {
             exit(1);
         }
     }
+}
+
+char *get_md5sum(char *filename, int32_t file_size) {
+    int file_descript = open(filename, O_RDONLY);
+    unsigned char md5sum[16];
+    char *file_buffer = mmap(0, file_size, PROT_READ, MAP_SHARED, file_descript, 0);
+    MD5 ((unsigned char *) file_buffer, file_size, md5sum);
 }
