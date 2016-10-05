@@ -127,15 +127,17 @@ void get_and_send_info() {
     len = strlen(buf);
     len = htons(len);
 
-    // Send directory name length
+    // Send directory/file name length
     if (send(s, &len, sizeof(int16_t), 0) == -1) {
         perror("\nSend error!");
         close(s);
         exit(1);
     }
     
-    // Send name of directory
+    // Send name of directory/file
     send_string(buf);
+
+	printf("\nSent string: %s\n", buf);
 }
 
 void request_file() {
@@ -294,5 +296,29 @@ void change_dir() {
 }
 
 void delete_file() {
+	char buf[256] = "DEL";
+	int16_t len;
+	int result;
 
+	//send DEL request to server
+	send_string(buf);
+	bzero(buf, sizeof(buf));
+
+	printf("\nEnter file to delete: ");
+	get_and_send_info();
+
+	//receive result from server: 1 if file exists and -1 if not
+	if (recv(s, &result, sizeof(int), 0) == -1) {
+		perror("\nReceive error!");
+		close(s);
+		exit(1);
+	}
+	result = ntohl(result);
+
+	if (result == -1) {
+		printf("\nThe file does not exist on the server.\n");
+		return;
+	} else if (result == 1) {
+		printf("\nDo you want to delete the file? (Yes/No)\n");
+	}
 }

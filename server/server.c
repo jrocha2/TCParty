@@ -32,6 +32,7 @@ void list_dir();
 void make_dir();
 void remove_dir();
 void change_dir();
+void delete_file();
 
 int main(int argc, char *argv[]) {
 
@@ -165,6 +166,7 @@ void run_command(char *command ) {
     } else if (!strcmp(command, "CHD")) {
         change_dir();
     } else if (!strcmp(command, "DEL")) {
+		delete_file();
     } else if (!strcmp(command, "XIT")) {
     }
 }
@@ -282,7 +284,6 @@ void remove_dir() {
 void change_dir() {
     int result, client_result;
     char dir[256];
-    struct stat sb;
 
     // Get directory name
     receive_file_info(dir);
@@ -302,5 +303,29 @@ void change_dir() {
         perror("\nSend error!");
         exit(1);
     }
+}
 
+void delete_file() {
+	int result, file_exists;
+
+	char filename[256];
+
+	receive_file_info(filename);
+
+	printf("Received filename: %s\n", filename);
+
+	//determind if file exists
+	if (access(filename, F_OK) != -1) {
+		
+	} else {
+
+	}
+
+	file_exists = 1;
+
+	//Tell client if the file exists
+	if (send(new_s, &file_exists, sizeof(int), 0) == -1) {
+		perror("\n Send error!");
+		exit(1);
+	}
 }
