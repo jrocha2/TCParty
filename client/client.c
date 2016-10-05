@@ -26,6 +26,7 @@ void make_dir();
 void remove_dir();
 void change_dir();
 void delete_file();
+void delete_file_helper();
 
 int main(int argc, char** argv) {
 
@@ -133,11 +134,9 @@ void get_and_send_info() {
         close(s);
         exit(1);
     }
-    
+
     // Send name of directory/file
     send_string(buf);
-
-	printf("\nSent string: %s\n", buf);
 }
 
 void request_file() {
@@ -151,7 +150,7 @@ void upload_file() {
 void list_dir() {
     int bytes_read = 0, size = 0, len = 0, i = 0, j = 0;
     char dir[256], buf[256] = "LIS";
-    
+
     // Send LIS request to server
     send_string(buf);
 
@@ -161,12 +160,12 @@ void list_dir() {
         exit(1);
     }
     size = ntohl(size);
-    
+
     while (bytes_read < size) {
         bzero(buf, sizeof(buf));
         len = receive_string(buf);
         bytes_read += len;
-        
+
         // Parse stream for end of strings
         for (i = 0; i < len; i++) {
             if (buf[i] == '\0') {
@@ -246,7 +245,7 @@ void remove_dir() {
 
     // Send response to server
     send_string(buf);
-    
+
     if (!strcmp(buf, "No")) {
         printf("\nDelete abandoned by the user!\n");
     } else {
@@ -296,29 +295,66 @@ void change_dir() {
 }
 
 void delete_file() {
-	char buf[256] = "DEL";
-	int16_t len;
-	int result;
+    char buf[256] = "DEL";
+    int16_t len;
+    int result;
 
-	//send DEL request to server
-	send_string(buf);
-	bzero(buf, sizeof(buf));
+    //send DEL request to server
+    send_string(buf);
+    bzero(buf, sizeof(buf));
 
-	printf("\nEnter file to delete: ");
-	get_and_send_info();
+    printf("\nEnter file to delete: ");
+    get_and_send_info();
 
-	//receive result from server: 1 if file exists and -1 if not
-	if (recv(s, &result, sizeof(int), 0) == -1) {
-		perror("\nReceive error!");
-		close(s);
-		exit(1);
-	}
-	result = ntohl(result);
+    //receive result from server: 1 if file exists and -1 if not
+    if (recv(s, &result, sizeof(int), 0) == -1) {
+        perror("\nReceive error!");
+        close(s);
+        exit(1);
+    }
+    result = ntohl(result);
 
-	if (result == -1) {
-		printf("\nThe file does not exist on the server.\n");
-		return;
-	} else if (result == 1) {
-		printf("\nDo you want to delete the file? (Yes/No)\n");
-	}
+    if (result == -1) {
+        printf("\nThe file does not exist on the server.\n");
+    } else if (result == 1) {
+        //call function to actually delete the file now that it exists
+        delete_file_helper();
+    } 
+    
+    
+    else if (result == 1) {
+    }
+}
+
+//Only call once the server has ensured that the file exists
+//This function actually tells the server to delete the file
+void delete_file_helper() {
+    char buf[256];
+    int result;
+
+    printf("\nDo you want to delete the file? (Yes/No)\n");
+    
+    scanf("%s", buf);
+    getchar();
+
+    // Send response to server
+    send_string(buf);
+
+    if (!strcmp(buf, "No")) {
+        printf("\nDelete abandoned by the user!\n");
+    } else if (!strcmp(buf, "Yes")) {
+        // Receive result from server
+        if (recv(s, &result, sizeof(int), 0) == -1) {
+            perror("\nReceive error!");
+            close(s);
+            exit(1);
+        }
+        result = ntohl(result);
+
+        if (result < 0) {
+            printf("\nFailed to delete file\n");
+        } else {
+            printf("\nFile deleted\n");
+        }
+    }
 }

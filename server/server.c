@@ -33,6 +33,7 @@ void make_dir();
 void remove_dir();
 void change_dir();
 void delete_file();
+void delete_file_helper(char *);
 
 int main(int argc, char *argv[]) {
 
@@ -125,7 +126,7 @@ void receive_file_info(char* dir) {
     int bytes_read = 0;
     int16_t len;
     char buf[256];
-     
+
     // Receive length of string
     if (recv(new_s, &len, sizeof(int16_t), 0) == -1) {
         perror("\nReceive error!");
@@ -166,7 +167,7 @@ void run_command(char *command ) {
     } else if (!strcmp(command, "CHD")) {
         change_dir();
     } else if (!strcmp(command, "DEL")) {
-		delete_file();
+        delete_file();
     } else if (!strcmp(command, "XIT")) {
     }
 }
@@ -306,26 +307,61 @@ void change_dir() {
 }
 
 void delete_file() {
-	int result, file_exists;
+    int result, file_exists;
 
-	char filename[256];
+    char filename[256];
 
-	receive_file_info(filename);
+    receive_file_info(filename);
 
-	printf("Received filename: %s\n", filename);
+    //determine if file exists
+    if (access(filename, F_OK) != -1) {
+        file_exists = 1;
+    } else {
+        file_exists = -1;
+    }
 
-	//determind if file exists
-	if (access(filename, F_OK) != -1) {
-		
-	} else {
+    file_exists = htonl(file_exists);
 
-	}
+    //Tell client if the file exists
+    if (send(new_s, &file_exists, sizeof(int), 0) == -1) {
+        perror("\n Send error!");
+        exit(1);
+    }
 
-	file_exists = 1;
+    //exit function if file does not exist
+    if (file_exists == -1) {
+        return;
+    } else {
+        //call helper functiont to actunally delete file
+        delete_file_helper(filename);
+    }
+}
 
-	//Tell client if the file exists
-	if (send(new_s, &file_exists, sizeof(int), 0) == -1) {
-		perror("\n Send error!");
-		exit(1);
-	}
+//Called within delete_file() after it is ensure that filename exists
+void delete_file_helper(char *filename) {
+
+    char buf[256];
+    int result, client_result;
+
+    // Receive deletion confirmation
+    receive_string(buf);
+
+    if (!strcmp(buf, "No")) {
+        return;
+    } else if (!strcmp(buf, "Yes")) {
+        //If yes, delete file
+        result = unlink(filename);
+        if (result == 0) {
+            client_result = 1;
+        } else {
+            client_result = -1;
+        }
+        client_result = htonl(client_result);
+
+        // Send result to client
+        if (send(new_s, &client_result, sizeof(int), 0) == -1) {
+            perror("\nSend error!");
+            exit(1);
+        }
+    }
 }
