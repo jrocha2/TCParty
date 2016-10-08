@@ -130,8 +130,6 @@ void send_string(char* buffer) {
 }
 
 void send_file_in_chunks(char *filename) {
-    printf("here\n");
-
     //use as buffer
     char line[4096];
     int len;
@@ -139,7 +137,6 @@ void send_file_in_chunks(char *filename) {
 
 
     while((len=fread(line, sizeof(char), sizeof(line), file)) > 0) {
-        printf("Sending: %s", line);
         if (send(new_s, line, len, 0) == -1) {
             perror("\nSend error!");
             exit(1);
@@ -214,10 +211,8 @@ void send_file() {
     if (access(filename, F_OK) != -1) {
         stat(filename, &st);
         file_size = st.st_size;
-        printf("file exists\n");
     } else {
         file_size = -1;
-        printf("file does not exist\n");
     }
 
     int file_size_htonl = htonl(file_size);
@@ -237,10 +232,13 @@ void send_file() {
     char md5sum[16];
     get_md5sum(md5sum, filename, file_size);
 
-    print_md5sum((unsigned char *)md5sum);
+    //send md5sum
+    if (send(new_s, md5sum, 16, 0) == -1) {
+        perror("Client send error!\n");
+        exit(1);
+    }
 
-    //send_string(md5sum);
-
+    //send file
     send_file_in_chunks(filename);
 }
 

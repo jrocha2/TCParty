@@ -13,6 +13,9 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <math.h>
+#include<fcntl.h>
+#include<sys/mman.h>
+#include<openssl/md5.h>
 
 int s;  // Global variable for socket fd
 
@@ -30,6 +33,7 @@ void delete_file_helper();
 void print_md5sum(unsigned char *);
 void create_file_in_chunks(char *, int);
 void send_file_with_name(char *);
+void get_md5sum(unsigned char *, char *, int32_t); 
 
 int main(int argc, char** argv) {
 
@@ -108,7 +112,6 @@ int receive_string(char* buffer) {
         close(s);
         exit(1);
     }
-    printf("Received string: %s with len: %i\n", buffer, len);
     return len;
 }
 
@@ -122,8 +125,6 @@ int receive_string_with_size(char *str, int size) {
         bytes_read += receive_string(buf);
         strcat(str, buf);
     }
-
-    printf("string: %s, bytes_read: %i\n", str, bytes_read);
 
     return bytes_read;
 }
@@ -141,8 +142,6 @@ void create_file_in_chunks(char *filename, int file_size) {
 
     //create new file
     FILE *f = fopen(filename, "w+"); 
-
-    printf("here\n");
 
     if (f) {
         while(total_bytes_read < file_size) {
@@ -220,7 +219,7 @@ void request_file() {
     char buf[256] = "REQ";
     int16_t len;
     int32_t file_size;
-    unsigned char md5sum[100];
+    unsigned char server_md5sum[20], client_md5sum[20];
 
     //send REQ request to server
     send_string(buf);
@@ -248,11 +247,18 @@ void request_file() {
         return;
     }
 
-    //receive_string_with_size(md5sum, 16);
-
-    //print_md5sum(md5sum);
+    receive_string_with_size(server_md5sum, 16);
 
     create_file_in_chunks(filename, file_size);
+
+    get_md5sum(client_md5sum, filename, file_size);
+
+    //check if md5sums are equal
+    if (!strcmp(client_md5sum, server_md5sum)) {
+        printf("\nTransfer successful.\n");
+    } else {
+        printf("\nTransfer not successful.\n");
+    }
 }
 
 void upload_file() {
@@ -465,6 +471,25 @@ void delete_file_helper() {
             printf("\nFile deleted\n");
         }
     }
+}
+
+void get_md5sum(unsigned char *md5sum, char *filename, int32_t file_size) {
+    int file_descript = open(filename, O_RDONLY);
+    char *file_buffer = mmap(0, file_size, PROT_READ, MAP_SHARED, file_descript, 0);
+    MD5 ((unsigned char *) file_buffer, file_size, md5sum);
+}
+
+void read_file(char *filename, char *buf) {
+	long length;
+	FILE *f = fopen(filename, "r");
+
+	if (f) {
+		fseek(f, 0, SEEK_END);
+		length = ftell(f);
+		fseek(f, 0, SEEK_SET);
+		fread(buf, 1, length, f);
+		fclose(f);
+	}
 }
 
 void print_md5sum(unsigned char *md) {
