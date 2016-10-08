@@ -16,6 +16,8 @@
 #include<fcntl.h>
 #include<sys/mman.h>
 #include<openssl/md5.h>
+#include<time.h>
+
 
 int s;  // Global variable for socket fd
 
@@ -31,9 +33,10 @@ void change_dir();
 void delete_file();
 void delete_file_helper();
 void print_md5sum(unsigned char *);
-void create_file_in_chunks(char *, int);
+double create_file_in_chunks(char *, int);
 void send_file_with_name(char *);
 void get_md5sum(unsigned char *, char *, int32_t); 
+double calculate_throughput(struct timespec *start, struct timespec *end, int);
 
 int main(int argc, char** argv) {
 
@@ -136,14 +139,20 @@ int receive_string_unknown_size(char *str) {
     bzero(str, sizeof(str));
 }
 
-void create_file_in_chunks(char *filename, int file_size) {
+//return throughput
+double create_file_in_chunks(char *filename, int file_size) {
     char buf[4096];
     int total_bytes_read = 0, len;
+    double throughput = 0;
+    struct timespec start, end;
 
     //create new file
     FILE *f = fopen(filename, "w+"); 
 
     if (f) {
+        //get start time
+        clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+
         while(total_bytes_read < file_size) {
             bzero(buf, sizeof(buf));
             if ((len = recv(s, buf, sizeof(buf), 0)) == -1) {
@@ -154,16 +163,28 @@ void create_file_in_chunks(char *filename, int file_size) {
 
             total_bytes_read += len;
             
-
-
-
-            //printf("strlen: %i total read: %i placed in file: %s", strlen(buf), total_bytes_read, buf);
             //add to file
             fwrite(buf, sizeof(char), len, f);
         }
 
+        //get end time
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+
         fclose(f);
+
+        throughput = calculate_throughput(&start, &end, file_size);
     }
+
+    return throughput;
+}
+
+double calculate_throughput(struct timespec *start, struct timespec *end, int file_size) {
+
+    //this is the time change in microseconds
+    double time_change = (end->tv_sec - start->tv_sec) * 1000000 + (double)(end->tv_nsec - start->tv_nsec) / 1000; 
+
+    //filesize * 8 / time_change is bits/ microsecond which is Mbps
+    return file_size * 8 / time_change;
 }
 
 void send_string(char* buffer) {
@@ -219,7 +240,9 @@ void request_file() {
     char buf[256] = "REQ";
     int16_t len;
     int32_t file_size;
-    unsigned char server_md5sum[20], client_md5sum[20];
+    unsigned char server_md5sum[17], client_md5sum[17];
+    bzero(server_md5sum, sizeof(server_md5sum));
+    bzero(client_md5sum, sizeof(client_md5sum));
 
     //send REQ request to server
     send_string(buf);
@@ -249,13 +272,13 @@ void request_file() {
 
     receive_string_with_size(server_md5sum, 16);
 
-    create_file_in_chunks(filename, file_size);
+    double throughput = create_file_in_chunks(filename, file_size);
 
     get_md5sum(client_md5sum, filename, file_size);
 
     //check if md5sums are equal
     if (!strcmp(client_md5sum, server_md5sum)) {
-        printf("\nTransfer successful.\n");
+        printf("\nTransfer successful. Throughput: %f Mbps\n", throughput);
     } else {
         printf("\nTransfer not successful.\n");
     }
