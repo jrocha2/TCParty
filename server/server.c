@@ -130,17 +130,19 @@ void send_string(char* buffer) {
 }
 
 void send_file_in_chunks(char *filename) {
+    printf("here\n");
 
     //use as buffer
     char line[4096];
     
     FILE *file = fopen(filename, "r"); 
 
-    while(fgets, line, sizeof(line), file) {
-        printf("%s", line);
+    while(fgets(line, sizeof(line), file)) {
+        printf("Sending: %s", line);
+        send_string(line);
+        bzero(line, sizeof(line));
     }
-
-    send_string(line);
+    fclose(file);
 }
 
 // Receives length of file/directory and then the name
@@ -233,7 +235,7 @@ void send_file() {
 
     print_md5sum((unsigned char *)md5sum);
 
-    send_string(md5sum);
+    //send_string(md5sum);
 
     send_file_in_chunks(filename);
 }

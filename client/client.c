@@ -27,8 +27,9 @@ void remove_dir();
 void change_dir();
 void delete_file();
 void delete_file_helper();
-void print_md5sum(unsigned char *md);
+void print_md5sum(unsigned char *);
 void create_file_in_chunks(char *, int);
+void send_file_with_name(char *);
 
 int main(int argc, char** argv) {
 
@@ -107,6 +108,7 @@ int receive_string(char* buffer) {
         close(s);
         exit(1);
     }
+    printf("Received string: %s with len: %i\n", buffer, len);
     return len;
 }
 
@@ -121,24 +123,48 @@ int receive_string_with_size(char *str, int size) {
         strcat(str, buf);
     }
 
+    printf("string: %s, bytes_read: %i\n", str, bytes_read);
+
     return bytes_read;
+}
+
+int receive_string_unknown_size(char *str) {
+    char buf[4096];
+    int bytes_read = 0;
+
+    bzero(str, sizeof(str));
 }
 
 void create_file_in_chunks(char *filename, int file_size) {
     char buf[4096];
     int total_bytes_read = 0;
 
-    printf("expected: %i\n", file_size);
-    while(total_bytes_read <= file_size) {
-        int expected_bytes;
-        if (file_size - total_bytes_read >= 4096) {
-            expected_bytes = 4096;
-        } else {
-            expected_bytes = file_size - total_bytes_read;
+    //create new file
+    FILE *f = fopen(filename, "w+"); 
+
+    printf("here\n");
+
+    if (f) {
+        while(total_bytes_read <= file_size) {
+            bzero(buf, sizeof(buf));
+            int expected_bytes;
+            if (file_size - total_bytes_read >= 4096) {
+                expected_bytes = 4096;
+            } else {
+                expected_bytes = file_size - total_bytes_read;
+            }
+
+            total_bytes_read += receive_string_with_size(buf, expected_bytes);
+            
+
+
+
+            //printf("strlen: %i total read: %i placed in file: %s", strlen(buf), total_bytes_read, buf);
+            //add to file
+            fprintf(f, buf);
         }
 
-        total_bytes_read += receive_string_with_size(buf, expected_bytes);
-        printf("Read: %i", total_bytes_read);
+        fclose(f);
     }
 }
 
@@ -173,6 +199,23 @@ void get_and_send_info() {
     send_string(buf);
 }
 
+void send_file_with_name(char *filename) {
+
+    int16_t len;
+    len = strlen(filename);
+    len = htons(len);
+
+    // Send directory/file name length
+    if (send(s, &len, sizeof(int16_t), 0) == -1) {
+        perror("\nSend error!");
+        close(s);
+        exit(1);
+    }
+
+    // Send name of directory/file
+    send_string(filename);
+}
+
 void request_file() {
 
     char buf[256] = "REQ";
@@ -185,7 +228,13 @@ void request_file() {
     bzero(buf, sizeof(buf));
 
     printf("\nEnter the name of the file you want to download: ");
-    get_and_send_info();
+    char filename[256];
+    bzero(buf, sizeof(filename));   
+
+    scanf("%s", filename);
+    getchar();
+
+    send_file_with_name(filename);
 
     //receive result from server: 1 if file exists and -1 if not
     if (recv(s, &file_size, sizeof(int), 0) == -1) {
@@ -200,11 +249,9 @@ void request_file() {
         return;
     }
 
-    receive_string_with_size(md5sum, 17);
+    //receive_string_with_size(md5sum, 16);
 
-    print_md5sum(md5sum);
-
-    char *filename = "delete.txt";
+    //print_md5sum(md5sum);
 
     create_file_in_chunks(filename, file_size);
 }
