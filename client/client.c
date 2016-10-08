@@ -137,7 +137,7 @@ int receive_string_unknown_size(char *str) {
 
 void create_file_in_chunks(char *filename, int file_size) {
     char buf[4096];
-    int total_bytes_read = 0;
+    int total_bytes_read = 0, len;
 
     //create new file
     FILE *f = fopen(filename, "w+"); 
@@ -145,23 +145,22 @@ void create_file_in_chunks(char *filename, int file_size) {
     printf("here\n");
 
     if (f) {
-        while(total_bytes_read <= file_size) {
+        while(total_bytes_read < file_size) {
             bzero(buf, sizeof(buf));
-            int expected_bytes;
-            if (file_size - total_bytes_read >= 4096) {
-                expected_bytes = 4096;
-            } else {
-                expected_bytes = file_size - total_bytes_read;
+            if ((len = recv(s, buf, sizeof(buf), 0)) == -1) {
+                perror("\nReceive error");
+                close(s);
+                exit(1);
             }
 
-            total_bytes_read += receive_string_with_size(buf, expected_bytes);
+            total_bytes_read += len;
             
 
 
 
             //printf("strlen: %i total read: %i placed in file: %s", strlen(buf), total_bytes_read, buf);
             //add to file
-            fprintf(f, buf);
+            fwrite(buf, sizeof(char), len, f);
         }
 
         fclose(f);

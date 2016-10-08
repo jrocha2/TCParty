@@ -134,12 +134,16 @@ void send_file_in_chunks(char *filename) {
 
     //use as buffer
     char line[4096];
-    
+    int len;
     FILE *file = fopen(filename, "r"); 
 
-    while(fgets(line, sizeof(line), file)) {
+
+    while((len=fread(line, sizeof(char), sizeof(line), file)) > 0) {
         printf("Sending: %s", line);
-        send_string(line);
+        if (send(new_s, line, len, 0) == -1) {
+            perror("\nSend error!");
+            exit(1);
+        }
         bzero(line, sizeof(line));
     }
     fclose(file);
