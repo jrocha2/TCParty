@@ -28,11 +28,13 @@ int new_s; // global variable for socket
 
 int receive_string(char *);
 void send_string(char *);
+void ack();
 void send_file_in_chunks(char *);
 void receive_file_info(char *);
 int get_command(char *, int new_s); 
 void run_command(char *command);
 void send_file();
+void get_file();
 void list_dir();
 void make_dir();
 void remove_dir();
@@ -129,6 +131,11 @@ void send_string(char* buffer) {
     }
 }
 
+void ack() {
+    char buf[4] = "ACK";
+    send_string(buf);
+}
+
 void send_file_in_chunks(char *filename) {
     //use as buffer
     char line[4096];
@@ -157,7 +164,10 @@ void receive_file_info(char* dir) {
         perror("\nReceive error!");
         exit(1);
     }
-    len = ntohs(len);
+    printf("\nLength of file: %i\n", len);
+    len = ntohl(len);
+
+    printf("\nLength of file: %i\n", len);
 
     // Receive string
     bzero(dir, sizeof(dir));
@@ -166,6 +176,8 @@ void receive_file_info(char* dir) {
         bytes_read += receive_string(buf);
         strcat(dir, buf);
     }
+
+    //printf("\nname: %s\n", buf);
 }
 
 //returns 0 if quit, 1 otherwise
@@ -184,6 +196,7 @@ void run_command(char *command ) {
     if (!strcmp(command, "REQ")) {
         send_file();
     } else if (!strcmp(command, "UPL")) {
+        get_file();
     } else if (!strcmp(command, "LIS")) {
         list_dir();
     } else if (!strcmp(command, "MKD")) {
@@ -240,6 +253,30 @@ void send_file() {
 
     //send file
     send_file_in_chunks(filename);
+}
+
+void get_file() {
+    int32_t file_size;
+    struct stat st;
+
+    char filename[256];
+
+    receive_file_info(filename);
+
+    //printf("\nName of file: %s\n", filename);
+
+    //ack();
+
+    //get file_size
+    /*if (recv(new_s, &file_size, sizeof(int32_t), 0) == -1) {
+        perror("\nReceive error!");
+        exit(1);
+    }
+
+    printf("File sizeee: %i\n", file_size);
+    
+    file_size = ntohs(file_size);
+    */
 }
 
 void list_dir() {

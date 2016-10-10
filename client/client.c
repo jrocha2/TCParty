@@ -17,6 +17,7 @@
 #include<sys/mman.h>
 #include<openssl/md5.h>
 #include<time.h>
+#include <sys/stat.h>
 
 
 int s;  // Global variable for socket fd
@@ -222,7 +223,10 @@ void send_file_with_name(char *filename) {
 
     int16_t len;
     len = strlen(filename);
+    printf("Length: %i\n", len);
     len = htons(len);
+
+    printf("Sending length: %i\n", len);
 
     // Send directory/file name length
     if (send(s, &len, sizeof(int16_t), 0) == -1) {
@@ -281,10 +285,64 @@ void request_file() {
         printf("\nTransfer successful. Throughput: %f Mbps\n", throughput);
     } else {
         printf("\nTransfer not successful.\n");
+
+        //if transfer was not successful then remove the file
+        unlink(filename);
     }
 }
 
 void upload_file() {
+
+    char buf[10] = "UPL";
+    char filename[256];
+    int16_t len;
+    int32_t file_size;
+    unsigned char md5sum[17];
+    struct stat st;
+
+    //get filename from user
+
+    printf("\nEnter file name to upload: ");
+    scanf("%s", filename);
+    getchar();
+
+    //make sure file exists. if not, return
+    if (access(filename, F_OK) == -1) {
+        printf("\nFile does not exist.\n");
+        return;
+    } else {
+        //else get file size
+        stat(filename, &st);
+        file_size = st.st_size;
+        //printf("File size: %i", file_size);
+    }
+
+    //send UPL request
+    send_string(buf);
+
+    //send UPL request to server
+    send_file_with_name(filename);
+/*
+    bzero(buf, sizeof(buf));
+    receive_string(buf);
+
+    if (strcmp(buf, "ACK") != 0) {
+        return;
+    }
+
+    int file_size_htonl = htonl(file_size);
+
+    int32_t example = 2;
+
+    printf("\nSending: %i\n", example);
+
+    if (send(s, &example, sizeof(int32_t), 0) == -1) {
+        perror("\nSend error!");
+        exit(1);
+    } else {
+        printf("File size: %i", file_size);
+        printf("Send: %i", file_size_htonl);
+    } */
 
 }
 
