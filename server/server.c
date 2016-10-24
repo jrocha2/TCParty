@@ -20,6 +20,9 @@
 #include<fcntl.h>
 #include<sys/mman.h>
 #include<openssl/md5.h>
+#include<time.h>
+#include<dirent.h>
+#include<sys/time.h>
 
 #define MAX_PENDING 5
 #define MAX_LINE 4096
@@ -43,6 +46,9 @@ void delete_file_helper(char *);
 void get_md5sum(char *md5sum, char *filename, int32_t file_size); 
 void print_md5sum(unsigned char *);
 void read_file(char *filename, char *buf);
+void send_file_in_chunks(char *);
+double create_file_in_chunks(char *, int);
+double calculate_throughput(struct timespec *start, struct timespec *end, int);
 
 int main(int argc, char *argv[]) {
 
@@ -255,10 +261,25 @@ void ack() {
     send_string(buf);
 }
 
+int receive_string_with_size(char *str, int size) {
+    char buf[size];
+    int bytes_read = 0;
+
+    bzero(str, sizeof(str));
+    while(bytes_read < size) {
+        bzero(buf, sizeof(buf));
+        bytes_read += receive_string(buf);
+        strcat(str, buf);
+    }
+
+    return bytes_read;
+}
+
 void get_file() {
     int16_t len;
     int32_t file_size;
     char filename[256];
+    char server_md5sum[16], client_md5sum[16];
 
     bzero(filename, sizeof(filename));
 
@@ -274,9 +295,72 @@ void get_file() {
         exit(1);
     }
 
+    //get file size
     file_size = ntohl(file_size);
 
     printf("File size: %i\n", file_size);
+
+    double throughput = create_file_in_chunks(filename, file_size);
+    
+    //get md5sum
+    //receive_string_with_size(client_md5sum, 16);
+    
+    //calculate md5sum
+    get_md5sum(server_md5sum, filename, file_size);
+
+    if (!strcmp(client_md5sum, server_md5sum)) {
+        printf("\nTransfer successful. Throughput: %f Mbps\n", throughput);
+    } else {
+        printf("\nTransfer not successful.\n");
+    }
+}
+
+//return throughput
+double create_file_in_chunks(char *filename, int file_size) {
+    char buf[4096];
+    int total_bytes_read = 0, len;
+    double throughput = 0;
+    struct timespec start, end;
+
+    //create new file
+    FILE *f = fopen(filename, "w+"); 
+
+    if (f) {
+        //get start time
+        clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+
+        while(total_bytes_read < file_size) {
+            bzero(buf, sizeof(buf));
+            if ((len = recv(new_s, buf, sizeof(buf), 0)) == -1) {
+                perror("\nReceive error");
+                close(new_s);
+                exit(1);
+            }
+
+            total_bytes_read += len;
+            
+            //add to file
+            fwrite(buf, sizeof(char), len, f);
+        }
+
+        //get end time
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+
+        fclose(f);
+
+        throughput = calculate_throughput(&start, &end, file_size);
+    }
+
+    return throughput;
+}
+
+double calculate_throughput(struct timespec *start, struct timespec *end, int file_size) {
+
+    //this is the time change in microseconds
+    double time_change = (end->tv_sec - start->tv_sec) * 1000000 + (double)(end->tv_nsec - start->tv_nsec) / 1000; 
+
+    //filesize * 8 / time_change is bits/ microsecond which is Mbps
+    return file_size * 8 / time_change;
 }
 
 void list_dir() {

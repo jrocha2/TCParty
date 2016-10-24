@@ -38,6 +38,7 @@ double create_file_in_chunks(char *, int);
 void send_file_with_name(char *);
 void get_md5sum(unsigned char *, char *, int32_t); 
 double calculate_throughput(struct timespec *start, struct timespec *end, int);
+void send_file_in_chunks(char *);
 
 int main(int argc, char** argv) {
 
@@ -294,11 +295,10 @@ void upload_file() {
     char filename[256];
     int len;
     struct stat st;
+    char client_md5sum[16];
 
     bzero(filename, sizeof(filename));
     
-    //get_and_send_info();
-
     printf("Enter name of file: ");
     scanf("%s", filename);
     getchar();
@@ -342,8 +342,7 @@ void upload_file() {
         exit(1);
     }
 
-    printf("Received: %s\n", ack);
-
+    //receive ACK
     if (!strcmp(ack, "ACK")) {
         printf("no\n");
         return;
@@ -355,6 +354,30 @@ void upload_file() {
         close(s);
         exit(1);
     }
+
+    send_file_in_chunks(filename);
+
+    //client computes md5sum and sends to server
+    //get_md5sum(client_md5sum, filename, file_size);
+
+    //send_string(client_md5sum);
+}
+
+void send_file_in_chunks(char *filename) {
+    //use as buffer
+    char line[4096];
+    int len;
+    FILE *file = fopen(filename, "r"); 
+
+
+    while((len=fread(line, sizeof(char), sizeof(line), file)) > 0) {
+        if (send(s, line, len, 0) == -1) {
+            perror("\nSend error!");
+            exit(1);
+        }
+        bzero(line, sizeof(line));
+    }
+    fclose(file);
 }
 
 void list_dir() {
