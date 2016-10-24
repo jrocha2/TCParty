@@ -17,6 +17,7 @@
 #include<sys/mman.h>
 #include<openssl/md5.h>
 #include<time.h>
+#include<dirent.h>
 
 
 int s;  // Global variable for socket fd
@@ -188,7 +189,7 @@ double calculate_throughput(struct timespec *start, struct timespec *end, int fi
 }
 
 void send_string(char* buffer) {
-    if (send(s, buffer, strlen(buffer)+1, 0) == -1) {
+    if (send(s, buffer, strlen(buffer), 0) == -1) {
         perror("Client send error!\n");
         close(s);
         exit(1);
@@ -265,6 +266,8 @@ void request_file() {
     }
     file_size = ntohl(file_size);
 
+    printf("File size: %i\n", file_size);
+
     if (file_size == -1) {
         printf("\nThe file does not exist on the server.\n");
         return;
@@ -286,6 +289,72 @@ void request_file() {
 
 void upload_file() {
 
+    char buf[256] = "UPL";
+    int32_t file_size;
+    char filename[256];
+    int len;
+    struct stat st;
+
+    bzero(filename, sizeof(filename));
+    
+    //get_and_send_info();
+
+    printf("Enter name of file: ");
+    scanf("%s", filename);
+    getchar();
+
+    if (access(filename, F_OK) != -1) {
+        stat(filename, &st);
+        file_size = st.st_size;
+    } else {
+        printf("\nFile does not exist.\n");
+        return;
+    }
+
+    send_string(buf);
+
+    len = strlen(filename);
+    len = htons(len);
+
+    printf("\nfile size: %i\n", file_size);
+    file_size = htonl(file_size);
+
+    printf("sending len: %i", len);
+
+    // Send directory/file name length
+    if (send(s, &len, sizeof(int16_t), 0) == -1) {
+        perror("\nSend error!");
+        close(s);
+        exit(1);
+    }
+
+    // Send name of directory/file
+    send_string(filename);
+
+    printf("\nsending len: %i\n", file_size);
+    
+    char ack[256];
+    bzero(ack, sizeof(ack));
+
+    if (recv(s, &ack, sizeof(ack), 0) == -1) {
+        perror("Receive error!\n");
+        close(s);
+        exit(1);
+    }
+
+    printf("Received: %s\n", ack);
+
+    if (!strcmp(ack, "ACK")) {
+        printf("no\n");
+        return;
+    }
+
+    //send file size
+    if (send(s, &file_size, sizeof(int32_t), 0) == -1) {
+        perror("\nSend error!");
+        close(s);
+        exit(1);
+    }
 }
 
 void list_dir() {

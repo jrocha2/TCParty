@@ -33,6 +33,7 @@ void receive_file_info(char *);
 int get_command(char *, int new_s); 
 void run_command(char *command);
 void send_file();
+void get_file();
 void list_dir();
 void make_dir();
 void remove_dir();
@@ -99,6 +100,7 @@ int main(int argc, char *argv[]) {
 
             //receive command
             char command[100];	
+            bzero(command, sizeof(command));
             int valid_command = get_command(command, new_s);
             if (valid_command == 0) {
                 break;
@@ -119,11 +121,13 @@ int receive_string(char* buffer) {
         perror("Receive error!\n");
         exit(1);
     }
+    
+    //buffer[len] = '\0';
     return len;
 }
 
 void send_string(char* buffer) {
-    if (send(new_s, buffer, strlen(buffer)+1, 0) == -1) {
+    if (send(new_s, buffer, strlen(buffer), 0) == -1) {
         perror("Client send error!\n");
         exit(1);
     }
@@ -184,6 +188,7 @@ void run_command(char *command ) {
     if (!strcmp(command, "REQ")) {
         send_file();
     } else if (!strcmp(command, "UPL")) {
+        get_file();
     } else if (!strcmp(command, "LIS")) {
         list_dir();
     } else if (!strcmp(command, "MKD")) {
@@ -240,6 +245,36 @@ void send_file() {
 
     //send file
     send_file_in_chunks(filename);
+}
+
+void ack() {
+
+    char buf[] = "ack";
+    send_string(buf);
+}
+
+void get_file() {
+    int16_t len;
+    int32_t file_size;
+    char filename[256];
+
+    bzero(filename, sizeof(filename));
+
+    receive_file_info(filename);
+
+    printf("File name: %s\n", filename);
+
+    ack();
+
+    if (recv(new_s, &file_size, sizeof(int32_t), 0) == -1) {
+        perror("\nReceive error!");
+        close(new_s);
+        exit(1);
+    }
+
+    file_size = ntohl(file_size);
+
+    printf("File size: %i\n", file_size);
 }
 
 void list_dir() {
