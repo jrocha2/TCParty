@@ -170,6 +170,8 @@ void receive_file_info(char* dir) {
         bytes_read += receive_string(buf);
         strcat(dir, buf);
     }
+
+    printf("Filename: %s\n", dir);
 }
 
 //returns 0 if quit, 1 otherwise
@@ -305,7 +307,11 @@ void list_dir() {
     dp = opendir("./");
     if (dp != NULL) {
         while (ep = readdir(dp)) {
-            send_string(ep->d_name);
+            //send_string(ep->d_name);
+            if (send(new_s, ep->d_name, strlen(ep->d_name) + 1, 0) == -1) {
+                perror("Client send error!\n");
+                exit(1);
+            }
         }
         closedir(dp);
     } else {
