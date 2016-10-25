@@ -20,9 +20,6 @@
 #include<fcntl.h>
 #include<sys/mman.h>
 #include<openssl/md5.h>
-#include<time.h>
-#include<dirent.h>
-#include<sys/time.h>
 
 #define MAX_PENDING 5
 #define MAX_LINE 4096
@@ -176,8 +173,6 @@ void receive_file_info(char* dir) {
         bytes_read += receive_string(buf);
         strcat(dir, buf);
     }
-
-    printf("Filename: %s\n", dir);
 }
 
 //returns 0 if quit, 1 otherwise
@@ -279,39 +274,54 @@ void get_file() {
     int16_t len;
     int32_t file_size;
     char filename[256];
-    char server_md5sum[16], client_md5sum[16];
+    unsigned char server_md5sum[17], client_md5sum[17];
 
+    bzero(server_md5sum, sizeof(server_md5sum));
+    bzero(client_md5sum, sizeof(client_md5sum));
     bzero(filename, sizeof(filename));
 
     receive_file_info(filename);
 
-    printf("File name: %s\n", filename);
-
+    //send ACK
     ack();
 
+    //get file size
     if (recv(new_s, &file_size, sizeof(int32_t), 0) == -1) {
         perror("\nReceive error!");
         close(new_s);
         exit(1);
     }
 
-    //get file size
     file_size = ntohl(file_size);
-
-    printf("File size: %i\n", file_size);
-
-    double throughput = create_file_in_chunks(filename, file_size);
     
     //get md5sum
-    //receive_string_with_size(client_md5sum, 16);
+    receive_string_with_size(client_md5sum, 16);
+
+    int throughput = create_file_in_chunks(filename, file_size);
     
     //calculate md5sum
     get_md5sum(server_md5sum, filename, file_size);
 
-    if (!strcmp(client_md5sum, server_md5sum)) {
-        printf("\nTransfer successful. Throughput: %f Mbps\n", throughput);
-    } else {
-        printf("\nTransfer not successful.\n");
+    int equal = 1;
+    int i;
+
+    for (i=0; i<16; i++) {
+        if (server_md5sum[i] != client_md5sum[i]) {
+            equal = 0;
+        }
+    }
+
+    //if files do not match, set throughput to -1 and delete file
+    if (equal == 0) {
+        throughput = -1;
+        unlink(filename);
+    }
+
+    throughput = htonl(throughput);
+
+    if (send(new_s, &throughput, sizeof(int), 0) == -1) {
+        perror("Send error!\n");
+        exit(1);
     }
 }
 

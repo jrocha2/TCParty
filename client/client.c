@@ -267,8 +267,6 @@ void request_file() {
     }
     file_size = ntohl(file_size);
 
-    printf("File size: %i\n", file_size);
-
     if (file_size == -1) {
         printf("\nThe file does not exist on the server.\n");
         return;
@@ -285,6 +283,7 @@ void request_file() {
         printf("\nTransfer successful. Throughput: %f Mbps\n", throughput);
     } else {
         printf("\nTransfer not successful.\n");
+        unlink(filename);
     }
 }
 
@@ -299,7 +298,7 @@ void upload_file() {
 
     bzero(filename, sizeof(filename));
     
-    printf("Enter name of file: ");
+    printf("\nEnter name of file: ");
     scanf("%s", filename);
     getchar();
 
@@ -316,11 +315,6 @@ void upload_file() {
     len = strlen(filename);
     len = htons(len);
 
-    printf("\nfile size: %i\n", file_size);
-    file_size = htonl(file_size);
-
-    printf("sending len: %i", len);
-
     // Send directory/file name length
     if (send(s, &len, sizeof(int16_t), 0) == -1) {
         perror("\nSend error!");
@@ -331,8 +325,6 @@ void upload_file() {
     // Send name of directory/file
     send_string(filename);
 
-    printf("\nsending len: %i\n", file_size);
-    
     char ack[256];
     bzero(ack, sizeof(ack));
 
@@ -348,19 +340,40 @@ void upload_file() {
         return;
     }
 
+    int file_size_htonl = htonl(file_size);
+
     //send file size
-    if (send(s, &file_size, sizeof(int32_t), 0) == -1) {
+    if (send(s, &file_size_htonl, sizeof(int32_t), 0) == -1) {
         perror("\nSend error!");
         close(s);
+        exit(1);
+    }
+    
+    //client computes md5sum and sends to server
+    get_md5sum(client_md5sum, filename, file_size);
+
+    if (send(s, client_md5sum, 16, 0) == -1) {
+        perror("Client send error!\n");
         exit(1);
     }
 
     send_file_in_chunks(filename);
 
-    //client computes md5sum and sends to server
-    //get_md5sum(client_md5sum, filename, file_size);
+    int throughput;
 
-    //send_string(client_md5sum);
+    if (recv(s, &throughput, sizeof(int), 0) == -1) {
+        perror("Receive error!\n");
+        close(s);
+        exit(1);
+    }
+
+    throughput = ntohl(throughput);
+
+    if (throughput >= 0) {
+        printf("\nTransfer successful. Throughput: %i Mbps\n", throughput);
+    } else {
+        printf("\nTransfer not successful.\n");
+    }
 }
 
 void send_file_in_chunks(char *filename) {
