@@ -547,27 +547,33 @@ void delete_file_helper(char *filename) {
 
     char buf[256];
     int result, client_result;
+    int confirmation;
 
-    // Receive deletion confirmation
-    receive_string(buf);
+    if (recv(new_s, &confirmation, sizeof(int), 0) == -1) {
+        perror("Receive error!\n");
+        exit(1);
+    }
 
-    if (!strcmp(buf, "No")) {
+    confirmation = ntohl(confirmation);
+
+    //if user does not want to delete, abandon
+    if (confirmation == 0) {
         return;
-    } else if (!strcmp(buf, "Yes")) {
-        //If yes, delete file
-        result = unlink(filename);
-        if (result == 0) {
-            client_result = 1;
-        } else {
-            client_result = -1;
-        }
-        client_result = htonl(client_result);
+    }
 
-        // Send result to client
-        if (send(new_s, &client_result, sizeof(int), 0) == -1) {
-            perror("\nSend error!");
-            exit(1);
-        }
+    //If yes, delete file
+    result = unlink(filename);
+    if (result == 0) {
+        client_result = 1;
+    } else {
+        client_result = -1;
+    }
+    client_result = htonl(client_result);
+
+    // Send result to client
+    if (send(new_s, &client_result, sizeof(int), 0) == -1) {
+        perror("\nSend error!");
+        exit(1);
     }
 }
 

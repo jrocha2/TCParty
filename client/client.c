@@ -572,32 +572,46 @@ void delete_file() {
 //This function actually tells the server to delete the file
 void delete_file_helper() {
     char buf[256];
-    int result;
+    int result, confirmation = 0;
+    int conf_htonl;
 
+    //ask user for confirmation
     printf("\nDo you want to delete the file? (Yes/No)\n");
     
     scanf("%s", buf);
     getchar();
 
-    // Send response to server
-    send_string(buf);
+    if (!strcmp(buf, "Yes")) {
+        confirmation = 1;
+    }
 
-    if (!strcmp(buf, "No")) {
-        printf("\nDelete abandoned by the user!\n");
-    } else if (!strcmp(buf, "Yes")) {
-        // Receive result from server
-        if (recv(s, &result, sizeof(int), 0) == -1) {
-            perror("\nReceive error!");
-            close(s);
-            exit(1);
-        }
-        result = ntohl(result);
+    conf_htonl = htonl(confirmation);
 
-        if (result < 0) {
-            printf("\nFailed to delete file\n");
-        } else {
-            printf("\nFile deleted\n");
-        }
+    //send confirmation
+    if (send(s, &conf_htonl, sizeof(int), 0) == -1) {
+        perror("\nSend error!\n");
+        close(s);
+        exit(1);
+    }
+
+    //if user does not want to delete, exit function
+    if (confirmation == 0) {
+        printf("\nDelete abandoned by user.\n");
+        return;
+    }
+
+    // Receive result from server
+    if (recv(s, &result, sizeof(int), 0) == -1) {
+        perror("\nReceive error!");
+        close(s);
+        exit(1);
+    }
+    result = ntohl(result);
+
+    if (result < 0) {
+        printf("\nFailed to delete file\n");
+    } else {
+        printf("\nFile deleted\n");
     }
 }
 
