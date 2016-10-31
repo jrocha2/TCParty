@@ -12,7 +12,7 @@ The included files in this repository are:
   3.) server directory whih includes:
           Makefile
           server.c
-In order to compile the programs, just type "make" in the command line, "make clean" will remove the executable
+In order to compile the programs, just type "make" in the command line in the client and server folders; "make clean" will remove the executable
 
 To properly use the client, the server should be running first in order to process the commands used on the client side. 
 
@@ -33,7 +33,7 @@ RMD  remove a directory at the server
 CHD  change a directory at the server
 XIT  exit the server
 
-depending on the input the user gives the client will wait for the user to input the file or directory that they wish to alter. Non-existant files or directories will result in an error.
+Depending on the input the user gives the client will wait for the user to input the file or directory that they wish to alter. Non-existant files or directories will result in an error.
 
 Helpful sources:
 http://stackoverflow.com/questions/1220046/how-to-get-the-md5-hash-of-a-file-in-c
