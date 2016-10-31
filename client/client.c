@@ -512,7 +512,7 @@ void remove_dir() {
 
     if (!strcmp(buf, "No")) {
         printf("\nDelete abandoned by the user!\n");
-    } else {
+    } else if (!strcmp(buf, "Yes")) {
         // Receive rmdir result from server
         if (recv(s, &result, sizeof(int), 0) == -1) {
             perror("\nReceive error!");
@@ -526,6 +526,8 @@ void remove_dir() {
         } else {
             printf("\nDirectory deleted\n");
         }
+    } else {
+        printf("\nNot a valid input.\n");
     }
 }
 

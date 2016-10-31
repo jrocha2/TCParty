@@ -468,9 +468,7 @@ void remove_dir() {
     bzero(buf, sizeof(buf));
     receive_string(buf);
 
-    if (!strcmp(buf, "No")) {
-        return;
-    } else {
+    if (!strcmp(buf, "Yes")) {
         result = rmdir(dir);
         if (result == 0) {
             client_result = 1;
@@ -484,6 +482,8 @@ void remove_dir() {
             perror("\nSend error!");
             exit(1);
         }
+    } else {
+        return;
     }
 }
 
