@@ -1,3 +1,4 @@
+
 # TCParty
 
 Mary Connolly mconnol6
@@ -25,13 +26,36 @@ To execute the client:
 Once both executables are running, inputs are given on the client side. The client will wait for an input that matches one of the following:
 
 REQ  requests a file from the server
+  an example of REQ:
+    REQ
+    smallfile.txt
 UPL  upload a file to the server
+  an example of UPL:
+    UPL
+    smallfile.txt
 DEL  deletes a file from the server
+  an example of DEL:
+     DEL
+     smallfile.txt
 LIS  lists the directory at the server
+  an example of LIS:
+  LIS
 MKD  make a directory at the server
+  an example of MKD:
+    MKD
+    NEWDIR
 RMD  remove a directory at the server
+  an example of RMD:
+  RMD
+  OLDDIR
 CHD  change a directory at the server
+  an example of CHD:
+  CHD
+  OTHERDIR
 XIT  exit the server
+  use XIT
+
+the length of the file name is also sent to the server as a means of error checking if the sent data was corrputed.
 
 Depending on the input the user gives the client will wait for the user to input the file or directory that they wish to alter. Non-existant files or directories will result in an error.
 
