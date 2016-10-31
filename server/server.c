@@ -369,8 +369,8 @@ double calculate_throughput(struct timespec *start, struct timespec *end, int fi
     //this is the time change in microseconds
     double time_change = (end->tv_sec - start->tv_sec) * 1000000 + (double)(end->tv_nsec - start->tv_nsec) / 1000; 
 
-    //filesize * 8 / time_change is bits/ microsecond which is Mbps
-    return file_size * 8 / time_change;
+    //filesize / time_change is Bytes / microsecond which is Megabytes per second
+    return file_size / time_change;
 }
 
 void list_dir() {

@@ -34,10 +34,11 @@ void change_dir();
 void delete_file();
 void delete_file_helper();
 void print_md5sum(unsigned char *);
-double create_file_in_chunks(char *, int);
+double create_file_in_chunks(char *, int, double *);
+double calculate_time_change(struct timespec *, struct timespec *);
 void send_file_with_name(char *);
 void get_md5sum(unsigned char *, char *, int32_t); 
-double calculate_throughput(struct timespec *start, struct timespec *end, int);
+double calculate_throughput(struct timespec *, struct timespec *, int);
 void send_file_in_chunks(char *);
 
 int main(int argc, char** argv) {
@@ -142,7 +143,7 @@ int receive_string_unknown_size(char *str) {
 }
 
 //return throughput
-double create_file_in_chunks(char *filename, int file_size) {
+double create_file_in_chunks(char *filename, int file_size, double* sec) {
     char buf[4096];
     int total_bytes_read = 0, len;
     double throughput = 0;
@@ -175,9 +176,15 @@ double create_file_in_chunks(char *filename, int file_size) {
         fclose(f);
 
         throughput = calculate_throughput(&start, &end, file_size);
+        
+        *sec = calculate_time_change(&start, &end);
     }
 
     return throughput;
+}
+
+double calculate_time_change(struct timespec *start, struct timespec *end) {
+    return (end->tv_sec - start-> tv_sec) + (double)(end->tv_nsec - start->tv_nsec) / 1000000000;
 }
 
 double calculate_throughput(struct timespec *start, struct timespec *end, int file_size) {
@@ -185,8 +192,8 @@ double calculate_throughput(struct timespec *start, struct timespec *end, int fi
     //this is the time change in microseconds
     double time_change = (end->tv_sec - start->tv_sec) * 1000000 + (double)(end->tv_nsec - start->tv_nsec) / 1000; 
 
-    //filesize * 8 / time_change is bits/ microsecond which is Mbps
-    return file_size * 8 / time_change;
+    //filesize / time_change is Bytes/ microsecond which is Megabytes / second
+    return file_size / time_change;
 }
 
 void send_string(char* buffer) {
@@ -274,13 +281,18 @@ void request_file() {
 
     receive_string_with_size(server_md5sum, 16);
 
-    double throughput = create_file_in_chunks(filename, file_size);
+    //total time
+    double sec;
+
+    double throughput = create_file_in_chunks(filename, file_size, &sec);
 
     get_md5sum(client_md5sum, filename, file_size);
 
     //check if md5sums are equal
     if (!strcmp(client_md5sum, server_md5sum)) {
-        printf("\nTransfer successful. Throughput: %f Mbps\n", throughput);
+        printf("\n%i bytes transferred in %f seconds: %f Megabytes per second\n", file_size, sec, throughput);
+        printf("File MD5sum:");
+        print_md5sum(client_md5sum);
     } else {
         printf("\nTransfer not successful.\n");
         unlink(filename);
@@ -360,6 +372,7 @@ void upload_file() {
     send_file_in_chunks(filename);
 
     int throughput;
+    double sec;
 
     if (recv(s, &throughput, sizeof(int), 0) == -1) {
         perror("Receive error!\n");
@@ -369,8 +382,13 @@ void upload_file() {
 
     throughput = ntohl(throughput);
 
+    //calculate time
+    sec = file_size / (double)throughput / 1000000;
+
     if (throughput >= 0) {
-        printf("\nTransfer successful. Throughput: %i Mbps\n", throughput);
+        printf("\n%i bytes transferred in %f seconds: %i Megabytes per second\n", file_size, sec, throughput);
+        printf("File MD5sum: ");
+        print_md5sum(client_md5sum);
     } else {
         printf("\nTransfer not successful.\n");
     }
